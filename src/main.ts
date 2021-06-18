@@ -4,6 +4,8 @@ import * as Path from "path";
 import * as Commander from "commander";
 import chalk from "chalk";
 
+import { transpile } from "./walker";
+
 Commander.parse(process.argv);
 
 if (Commander.args.length < 2) {
@@ -11,14 +13,17 @@ if (Commander.args.length < 2) {
     process.exit(1);
 }
 
-process.stdout.write(`Reading Morphir source from ${Commander.args[0]}...\n`);
+const srcfile = Path.normalize(Commander.args[0]);
+const dstfile = Path.normalize(Commander.args[1]);
+
+process.stdout.write(`Reading Morphir source from ${srcfile}...\n`);
 
 try {
-    const source_ir = FS.readFileSync(Commander.args[0]).toString();
+    const source_ir = FS.readFileSync(srcfile).toString();
     const bsqcode = transpile(JSON.parse(source_ir));
 
-    process.stdout.write(`Writing Bosque source to ${Commander.args[1]}...\n`);
-    FS.writeFileSync(xxxx);
+    process.stdout.write(`Writing Bosque source to ${dstfile}...\n`);
+    FS.writeFileSync(dstfile, bsqcode);
 }
 catch (ex) {
     process.stderr.write(`Failed to transpile --- ${ex}`);
