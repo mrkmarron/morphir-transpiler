@@ -48,7 +48,7 @@ class Transpiler {
        return notImplemented("TypeVariable");
     }
 
-    processTypeRef(jv: any[]): string {
+    processTypeReference(jv: any[]): string {
         const atag = jv[1];
         assert(Object.keys(atag).length == 0);
 
@@ -79,7 +79,7 @@ class Transpiler {
             case "variable":
                 return this.processTypeVariable(jv);
             case "reference":
-                return this.processTypeVariable(jv);
+                return this.processTypeReference(jv);
             case "tuple":
                 return this.processTypeTuple(jv);
             case "record":
@@ -126,12 +126,24 @@ class Transpiler {
     processReference(jv: any[]): string {
         const rr = this.processFQN(jv[2]);
 
-        if (rr[1][0] !== "function") {
+        if (jv[1][0] !== "function") {
             return this.internName(rr);
         }
         else {
             switch (rr) {
-                case "morphir_sdk::basics::greater_than":
+                case "morphir_sdk::basics::add":
+                    this.opCurryStack.push({ op: "+", isinfix: true, "args": [] });
+                    break;
+                case "morphir_sdk::basics::sub":
+                    this.opCurryStack.push({ op: "-", isinfix: true, "args": [] });
+                    break;
+                case "morphir_sdk::basics::mult":
+                    this.opCurryStack.push({ op: "*", isinfix: true, "args": [] });
+                    break;
+                case "morphir_sdk::basics::div":
+                    this.opCurryStack.push({ op: "/", isinfix: true, "args": [] });
+                    break;
+                case "morphir_sdk::basics::greaterthan":
                     this.opCurryStack.push({ op: ">", isinfix: true, "args": [] });
                     break;
                 default:
@@ -156,7 +168,12 @@ class Transpiler {
         const ffunc = this.opCurryStack[this.opCurryStack.length - 1] as CurryStackEntry;
 
         const vv = this.processValue(jv[3], true);
-        if(force) {
+        ffunc.args.push(vv);
+
+        if(!force) {
+            return FUNCTION_TAG;
+        }
+        else {
             this.opCurryStack.pop();
 
             if(ffunc.isinfix) {
@@ -165,11 +182,6 @@ class Transpiler {
             else {
                 return `${ffunc.op}(${ffunc.args.join(", ")})`;
             }
-        }
-        else {
-            ffunc.args.push(vv);
-
-            return FUNCTION_TAG;
         }
     }
     
@@ -231,38 +243,55 @@ class Transpiler {
         switch(v[0]) {
             case "literal":
                 res = this.processLiteral(v);
+                break;
             case "constructor":
                 res = this.processConstructor(v);
+                break;
             case "tuple":
                 res = this.processTuple(v);
+                break;
             case "record":
                 res = this.processRecord(v);
+                break;
             case "variable":
                 res = this.processVariable(v);
+                break;
             case "reference":
                 res = this.processReference(v);
+                break;
             case "field":
                 res = this.processField(v);
+                break;
             case "field_function":
                 res = this.processFieldFunction(v);
+                break;
             case "apply":
                 res = this.processApply(v, force);
+                break;
             case "lambda":
                 res = this.processLambda(v);
+                break;
             case "let_definition":
                 res = this.processLet(v, indent);
+                break;
             case "let_recursion":
                 res = this.processLetRec(v);
+                break;
             case "destructure":
                 res = this.processDestructure(v);
+                break;
             case "if_then_else":
                 res = this.processIfThenElse(v);
+                break;
             case "pattern_match":
                 res = this.processPatternMatch(v);
+                break;
             case "update_record":
                 res = this.processUpdateRecord(v);
+                break;
             default:
                 notImplemented("processValue");
+                break;
         }
 
         if(indent === undefined) {
@@ -292,7 +321,7 @@ class Transpiler {
             body = `  return ${ebody};`
         }
 
-        return `function name(${args.join(", ")}): ${result} {\n` 
+        return `function ${name}(${args.join(", ")}): ${result} {\n` 
         + body + "\n"
         + "}";
     }
@@ -301,14 +330,14 @@ class Transpiler {
 function loadMainModule(jv: any): string {
     const jconv: Transpiler = new Transpiler();
 
-    const decls = jv.distribution[3].modules[0].def[1].values[0].map((vv: any) => {
+    const decls = jv.distribution[3].modules[0].def[1].values.map((vv: any) => {
         const name = vv[0][0];
         const decl = jconv.processFunctionDef(name, vv[1][1]);
 
         return decl;
     });
 
-    return decls.join("\n");
+    return "namespace Main;\n\n" + decls.join("\n");
 }
 
 function transpile(jv: object): string {
