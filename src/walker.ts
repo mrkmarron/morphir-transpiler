@@ -7,6 +7,12 @@ function notImplemented(of: string): string {
     return "[NOT IMPLEMENTED]";
 }
 
+enum VKind {
+    Exp,
+    Stmt,
+    Lambda
+}
+
 type LetStackEntry = string[];
 
 type CurryStackEntry = {
@@ -164,11 +170,11 @@ class Transpiler {
     }
 
     processApply(jv: any[], force: boolean): string {
-        this.processValue(jv[2], false);
+        this.processValue(jv[2], false, false);
         const ffunc = this.opCurryStack[this.opCurryStack.length - 1] as CurryStackEntry;
 
-        const vv = this.processValue(jv[3], true);
-        ffunc.args.push(vv);
+        const vv = this.processValue(jv[3], false, true);
+        ffunc.args.push(vv[1]);
 
         if(!force) {
             return FUNCTION_TAG;
@@ -189,7 +195,7 @@ class Transpiler {
         return notImplemented("processLambda");
     }
 
-    processLet(jv: any[], indent?: string): string {
+    processLet(jv: any[], stmtresult: boolean, indent?: string): string {
         return notImplemented("processLet");
 
         //get count of current scope (we want to know if this is the first let)
@@ -213,21 +219,29 @@ class Transpiler {
         return notImplemented("processDestructure");
     }
     
-    processIfThenElse(jv: any[], indent?: string): string {
+    processIfThenElse(jv: any[], stmtresult: boolean, indent?: string): string {
         const nindent = indent !== undefined ? (indent + "  ") : undefined;
 
-        const test = this.processValue(jv[2], true);
+        const test = this.processValue(jv[2], false, true);
 
         this.scopeStack.push([]);
-        const tval = this.processValue(jv[3], true, nindent);
+        const tval = this.processValue(jv[3], stmtresult, true, nindent);
         this.scopeStack.pop();
 
         this.scopeStack.push([]);
-        const fval = this.processValue(jv[4], true, nindent);
+        const fval = this.processValue(jv[4], stmtresult, true, nindent);
         this.scopeStack.pop();
 
         const sep = indent !== undefined ? ("\n" + indent) : " ";
-        return `if (${test})${sep}${tval}${sep}else${sep}${fval}` 
+        if(!stmtresult) {
+            return `if (${test[1]})${sep}${tval[1]}${sep}else${sep}${fval[1]}`;
+        }
+        else {
+            const tstmt = tval[0] === VKind.Exp ? `{\n${indent + "  "}return ${tval[1].trim()};\n${indent}}` : tval;
+            const fstmt = fval[0] === VKind.Exp ? `{\n${indent + "  "}return ${fval[1].trim()};\n${indent}}` : fval;
+
+            return `if (${test[1]})${sep}${tstmt}${sep}else${sep}${fstmt}`;
+        }
     }
 
     processPatternMatch(jv: any[]): string {
@@ -238,56 +252,56 @@ class Transpiler {
         return notImplemented("processUpdateRecord");
     }
 
-    processValue(v: any[], force: boolean, indent?: string): string {
-        let res = "";
+    processValue(v: any[], stmtresult: boolean, force: boolean, indent?: string): [VKind, string] {
+        let res = [VKind.Exp, ""];
         switch(v[0]) {
             case "literal":
-                res = this.processLiteral(v);
+                res = [VKind.Exp, this.processLiteral(v)];
                 break;
             case "constructor":
-                res = this.processConstructor(v);
+                res = [VKind.Exp, this.processConstructor(v)];
                 break;
             case "tuple":
-                res = this.processTuple(v);
+                res = [VKind.Exp, this.processTuple(v)];
                 break;
             case "record":
-                res = this.processRecord(v);
+                res = [VKind.Exp, this.processRecord(v)];
                 break;
             case "variable":
-                res = this.processVariable(v);
+                res = [VKind.Exp, this.processVariable(v)];
                 break;
             case "reference":
-                res = this.processReference(v);
+                res = [VKind.Exp, this.processReference(v)];
                 break;
             case "field":
-                res = this.processField(v);
+                res = [VKind.Exp, this.processField(v)];
                 break;
             case "field_function":
-                res = this.processFieldFunction(v);
+                res = [VKind.Exp, this.processFieldFunction(v)];
                 break;
             case "apply":
-                res = this.processApply(v, force);
+                res = [VKind.Exp, this.processApply(v, force)];
                 break;
             case "lambda":
-                res = this.processLambda(v);
+                res = [VKind.Lambda, this.processLambda(v)];
                 break;
             case "let_definition":
-                res = this.processLet(v, indent);
+                res = [stmtresult ? VKind.Stmt : VKind.Exp, this.processLet(v, stmtresult, indent)];
                 break;
             case "let_recursion":
-                res = this.processLetRec(v);
+                res = [stmtresult ? VKind.Stmt : VKind.Exp, this.processLetRec(v)];
                 break;
             case "destructure":
-                res = this.processDestructure(v);
+                res = [VKind.Exp, this.processDestructure(v)];
                 break;
             case "if_then_else":
-                res = this.processIfThenElse(v);
+                res = [stmtresult ? VKind.Stmt : VKind.Exp, this.processIfThenElse(v, stmtresult, indent)];
                 break;
             case "pattern_match":
-                res = this.processPatternMatch(v);
+                res = [VKind.Exp, this.processPatternMatch(v)];
                 break;
             case "update_record":
-                res = this.processUpdateRecord(v);
+                res = [VKind.Exp, this.processUpdateRecord(v)];
                 break;
             default:
                 notImplemented("processValue");
@@ -295,10 +309,10 @@ class Transpiler {
         }
 
         if(indent === undefined) {
-            return res;
+            return res as [VKind, string];
         }
         else {
-            return indent + res;
+            return [res[0] as VKind, indent + res[1] as string];
         }
     }
 
@@ -312,14 +326,9 @@ class Transpiler {
 
         const result = this.processType(jv.outputType);
 
-        let body = "";
-        if(jv.body[0] === "let") {
-            body = this.processValue(jv.body, true, "  ");
-        }
-        else {
-            const ebody = this.processValue(jv.body, true)
-            body = `  return ${ebody};`
-        }
+        this.scopeStack.push([]);
+        const body = this.processValue(jv.body, true, true, "  ")[1];
+        this.scopeStack.pop();
 
         return `function ${name}(${args.join(", ")}): ${result} {\n` 
         + body + "\n"
