@@ -1,0 +1,7 @@
+{
+    "name": "My.Package",
+    "sourceDirectory": "src",
+    "exposedModules": [
+        "Main"
+    ]
+}

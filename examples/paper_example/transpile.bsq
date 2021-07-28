@@ -1,0 +1,10 @@
+namespace NSMain;
+
+function main(x: Int): Int {
+    if ((x > 0i)) {
+        return (10i / x);
+    }
+    else {
+        return (-(10i) / x);
+    }
+}
