@@ -18,6 +18,8 @@ type LetStackEntry = string[];
 type CurryStackEntry = {
     op: string;
     isinfix: boolean;
+    isdot: boolean;
+    revargs: boolean;
     args: string[];
 };
 
@@ -59,7 +61,6 @@ class Transpiler {
         assert(Object.keys(atag).length == 0);
 
         const tparams = jv[3];
-        assert((tparams as any[]).length === 0);
 
         const fqn = this.processFQN(jv[2]);
         switch(fqn) {
@@ -68,9 +69,13 @@ class Transpiler {
             case "morphir_sdk::basics::int": 
                 return "Int";
             case "morphir_sdk::basics::float": 
-                return "float";
+                return "Float";
             case "morphir_sdk::basics::decimal": 
                 return "Decmial";
+            case "morphir_sdk::list::list": {
+                const oftype = this.processType(tparams[0]);
+                return `List<${oftype}>`;
+            }
             default:
                 return this.internName(fqn);
         }
@@ -81,7 +86,11 @@ class Transpiler {
     }
 
     processTypeRecord(jv: any[]): string {
-        return notImplemented("TypeRecord");
+        const entries = jv[2].map((ee: any) => {
+            return `${ee[0]}: ${this.processType(ee[1])}`;
+        });
+
+        return "{" + entries.join(", ") + "}";
     }
 
     processType(jv: any[]): string {
@@ -110,10 +119,14 @@ class Transpiler {
                 return `"${lv[1]}"`;
             case "int_literal":
                 return `${lv[1]}i`;
-            case "float_literal":
-                return `${lv[1]}f`;
-            case "decimal_literal":
-                return `${lv[1]}d`;
+            case "float_literal": {
+                let fstr = `${lv[1]}`;
+                return fstr + (fstr.includes(".") ? "f" : ".0f");
+            }
+            case "decimal_literal": {
+                let fstr = `${lv[1]}`;
+                return fstr + (fstr.includes(".") ? "d" : ".0d");
+            }
             default:
                 return notImplemented(`processLiteral -- ${lv[0]}`);
         }
@@ -144,31 +157,49 @@ class Transpiler {
         else {
             switch (rr) {
                 case "morphir_sdk::basics::negate":
-                    this.opCurryStack.push({ op: "-", isinfix: false, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::add":
-                    this.opCurryStack.push({ op: "+", isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::sub":
-                    this.opCurryStack.push({ op: "-", isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::mult":
-                    this.opCurryStack.push({ op: "*", isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
-                case "morphir_sdk::basics::div":
-                    this.opCurryStack.push({ op: "/", isinfix: true, "args": [] });
+                case "morphir_sdk::basics::divide":
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::integerdivide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    break;
+                case "morphir_sdk::basics::equal":
+                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::lessthan":
-                    this.opCurryStack.push({ op: "<", isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::greaterthan":
-                    this.opCurryStack.push({ op: ">", isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    break;
+                case "morphir_sdk::basics::tofloat":
+                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    break;
+                case "morphir_sdk::list::isempty":
+                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    break;
+                case "morphir_sdk::list::length":
+                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    break;
+                case "morphir_sdk::list::map":
+                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, revargs: true, "args": [] });
+                    break;
+                case "morphir_sdk::list::sum":
+                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, revargs: false, "args": [] });
                     break;
                 default:
-                    this.opCurryStack.push({ op: this.internName(rr), isinfix: true, "args": [] });
+                    this.opCurryStack.push({ op: this.internName(rr), isinfix: false, isdot: false, revargs: false, "args": [] });
                     break;
             }
 
@@ -177,7 +208,10 @@ class Transpiler {
     }
 
     processField(jv: any[]): string {
-        return notImplemented("processField");
+        const ee = this.processValue(jv[2], EvalMode.Exp, true);
+        const ff = jv[3][0];
+        
+        return `${ee}.${ff}`;
     }
 
     processFieldFunction(jv: any[]): string {
@@ -197,8 +231,15 @@ class Transpiler {
         else {
             this.opCurryStack.pop();
 
+            if(ffunc.revargs) {
+                ffunc.args = ffunc.args.reverse();
+            }
+
             if(ffunc.isinfix) {
                 return `(${ffunc.args[0]} ${ffunc.op} ${ffunc.args[1]})`;
+            }
+            else if(ffunc.isdot) {
+                return `(${ffunc.args[0]}).${ffunc.op}(${ffunc.args.slice(1).join(", ")})`;
             }
             else {
                 return `${ffunc.op}(${ffunc.args.join(", ")})`;
@@ -207,7 +248,11 @@ class Transpiler {
     }
     
     processLambda(jv: any[]): string {
-        return notImplemented("processLambda");
+        //const rtype = this.processType(jv[1][3]);
+        const vvar = jv[2][3];
+        const body = this.processValue(jv[3], EvalMode.Exp, true);
+        
+        return `fn(${vvar}) => ${body}`;
     }
 
     processLet(jv: any[], mode: EvalMode, indent?: string): string {

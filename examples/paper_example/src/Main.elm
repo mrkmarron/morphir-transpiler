@@ -1,5 +1,10 @@
 
 module My.Package.Main exposing (..)
 
-main : Int -> Int
-main x = if x > 0 then 10 // x else -10 // x
+main : List { quantity: Int, price : Float } -> Float
+--main l = (l |> List.map (\e -> e.price) |> List.sum) / (toFloat (List.length l))
+
+main l = if (List.isEmpty l) 
+    then 0.0
+    else (l |> List.map (\e -> e.price) |> List.sum) / (toFloat (List.length l))
+
