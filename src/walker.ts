@@ -165,7 +165,7 @@ class Transpiler {
                 case "morphir_sdk::basics::sub":
                     this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
-                case "morphir_sdk::basics::mult":
+                case "morphir_sdk::basics::multiply":
                     this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, revargs: false, "args": [] });
                     break;
                 case "morphir_sdk::basics::divide":
