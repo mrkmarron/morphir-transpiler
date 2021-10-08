@@ -20,6 +20,7 @@ type CurryStackEntry = {
     isinfix: boolean;
     isdot: boolean;
     revargs: boolean;
+    postaction: string | undefined;
     args: string[];
 };
 
@@ -42,6 +43,15 @@ class Transpiler {
 
     processName(name: string | string[]): string {
         return Array.isArray(name) ? name.join("") : name;
+    }
+
+    processNameAsType(name: string | string[]): string {
+        if(typeof(name) === "string") {
+            return name[0].toUpperCase() + name.slice(1);
+        } 
+        else {
+            return name.map((nn) => nn[0].toUpperCase() + nn.slice(1)).join("");
+        }
     }
 
     processPath(path: any[]): string {
@@ -77,7 +87,9 @@ class Transpiler {
                 return `List<${oftype}>`;
             }
             default:
-                return this.internName(fqn);
+                const tname = this.processNameAsType(jv[2][2]);
+                const ctname = (tname as string)[0].toUpperCase() + (tname as string).slice(1);
+                return this.internName(ctname);
         }
     }
 
@@ -157,49 +169,49 @@ class Transpiler {
         else {
             switch (rr) {
                 case "morphir_sdk::basics::negate":
-                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::add":
-                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::sub":
-                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::multiply":
-                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::divide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::integerdivide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::equal":
-                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::lessthan":
-                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::greaterthan":
-                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::basics::tofloat":
-                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::list::isempty":
-                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::list::length":
-                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "morphir_sdk::list::map":
-                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, revargs: true, "args": [] });
+                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, revargs: true, postaction: undefined, "args": [] });
                     break;
                 case "morphir_sdk::list::sum":
-                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
                     break;
                 default:
-                    this.opCurryStack.push({ op: this.internName(rr), isinfix: false, isdot: false, revargs: false, "args": [] });
+                    this.opCurryStack.push({ op: this.internName(rr), isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
             }
 
@@ -209,7 +221,7 @@ class Transpiler {
 
     processField(jv: any[]): string {
         const ee = this.processValue(jv[2], EvalMode.Exp, true);
-        const ff = jv[3][0];
+        const ff = this.processName(jv[3]);
         
         return `${ee}.${ff}`;
     }
@@ -235,15 +247,22 @@ class Transpiler {
                 ffunc.args = ffunc.args.reverse();
             }
 
+            let op = "";
             if(ffunc.isinfix) {
-                return `(${ffunc.args[0]} ${ffunc.op} ${ffunc.args[1]})`;
+                op = `(${ffunc.args[0]} ${ffunc.op} ${ffunc.args[1]})`;
             }
             else if(ffunc.isdot) {
-                return `(${ffunc.args[0]}).${ffunc.op}(${ffunc.args.slice(1).join(", ")})`;
+                op = `(${ffunc.args[0]}).${ffunc.op}(${ffunc.args.slice(1).join(", ")})`;
             }
             else {
-                return `${ffunc.op}(${ffunc.args.join(", ")})`;
+                op = `${ffunc.op}(${ffunc.args.join(", ")})`;
             }
+
+            if(ffunc.postaction !== undefined) {
+                op = op + ffunc.postaction;
+            }
+
+            return op;
         }
     }
     
@@ -256,19 +275,37 @@ class Transpiler {
     }
 
     processLet(jv: any[], mode: EvalMode, indent?: string): string {
-        return notImplemented("processLet");
-
         //get count of current scope (we want to know if this is the first let)
+        const cscope = this.scopeStack[this.scopeStack.length - 1];
+        const toplevel = cscope.length === 0;
 
         //get var + value assign
-        //check if value assign is function!!
+        const vname = this.processName(jv[2]);
+        const vvalue = this.processValue(jv[3].body, EvalMode.Exp, true);
 
         //push onto current scope list
+        cscope.push(`const ${vname} = ${vvalue};`);
 
         //compute in value
-
         //if this was the first let entry (then we need to make a block structure statment -- either yield or return)
         //otherwise just return the value -- with no indent
+        const escope = mode === EvalMode.Stmt ? EvalMode.Stmt : EvalMode.ExpStmt;
+        const exp = this.processValue(jv[4], escope, true, indent);
+
+        if (toplevel) {
+            const rindent = (indent || "");
+            if (escope === EvalMode.Stmt) {
+                const lets = cscope.join(`\n${indent}`);
+                return `${rindent}${lets}\n${exp}`;
+            }
+            else {
+                const lets = cscope.join(`\n${indent}`);
+                return `{|\n${rindent}${lets}\n${exp}\n${rindent}|}`;
+            }
+        }
+        else {
+            return exp;
+        }
     }
 
     processLetRec(jv: any[], mode: EvalMode, indent?: string): string {

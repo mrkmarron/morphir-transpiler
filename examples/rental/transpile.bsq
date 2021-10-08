@@ -1,0 +1,10 @@
+namespace NSMain;
+
+function categorize(forecast: Forecast): WindCategory {
+    const windcategory = morphir_example_app__winds::categorizewind(forecast.windspeed.max);
+    return windcategory;
+}
+function process(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requested: RequestedQuantity, allow: AllowPartials): Result {
+    const windcategory = morphir_example_app__app::categorizewindforforecast(forecast);
+    return morphir_example_app__rentals::decide(windcategory, forecast.shortforcast, inventory, reservations, returns, requestedquantity, allowpartials);
+}
