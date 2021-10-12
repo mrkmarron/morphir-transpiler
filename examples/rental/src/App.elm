@@ -4,8 +4,8 @@ import Morphir.Example.App.Forecast exposing (..)
 import Morphir.Example.App.Rentals exposing (..)
 import Morphir.Example.App.Winds exposing (..)
 
-processRequest : Forecast -> CurrentInventory -> ExistingReservations -> PendingReturns -> RequestedQuantity -> AllowPartials -> Result Reason ReservedQuantity
-processRequest forecast inventory reservations returns requestedQuantity allowPartials =
+main : Forecast -> CurrentInventory -> ExistingReservations -> PendingReturns -> RequestedQuantity -> AllowPartials -> Result Reason ReservedQuantity
+main forecast inventory reservations returns requestedQuantity allowPartials =
     let
         windCategory : WindCategory
         windCategory =

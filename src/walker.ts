@@ -19,6 +19,7 @@ type CurryStackEntry = {
     op: string;
     isinfix: boolean;
     isdot: boolean;
+    iscons: boolean,
     revargs: boolean;
     postaction: string | undefined;
     args: string[];
@@ -66,8 +67,8 @@ class Transpiler {
     }
 
     processTypeReference(jv: any[]): string {
-        const atag = jv[1];
-        assert(Object.keys(atag).length == 0);
+        //const atag = jv[1];
+        //assert(Object.keys(atag).length == 0);
 
         const tparams = jv[3];
 
@@ -92,7 +93,7 @@ class Transpiler {
 
     processTypeRecord(jv: any[]): string {
         const entries = jv[2].map((ee: any) => {
-            return `${ee[0]}: ${this.processType(ee[1])}`;
+            return `${this.processNameAsVarOrField(ee[0])}: ${this.processType(ee[1])}`;
         });
 
         return "{" + entries.join(", ") + "}";
@@ -147,18 +148,18 @@ class Transpiler {
             return `${consname}::${ename}`;
         }
         else {
-            const op = this.processNameAsType(jv[2][2]);
-            
-            if(op === "Ok" || op === "Err") {
-                //const val = this.processValue(jv[1], EvalMode.Exp, true);
-                //return op === "Ok" ? `ok(${val})` : `err(${val})`;
-
-                return "[CONS]";
+            const ctype = this.processNameAsType(jv[2][2]);
+            if(ctype === "Ok") {
+                this.opCurryStack.push({ op: "ok", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+            }
+            else if(ctype === "Err") {
+                this.opCurryStack.push({ op: "err", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
             }
             else {
-                assert(false, "How do the args work??");
-                return "????";
+                this.opCurryStack.push({ op: ctype, isinfix: false, isdot: false, iscons: true, revargs: false, postaction: undefined, "args": [] });
             }
+
+            return FUNCTION_TAG;
         }
     }
 
@@ -182,50 +183,68 @@ class Transpiler {
             const rr = this.processNameAsFunction(jv[2][2]);
 
             switch (rr) {
+                case "not":
+                    this.opCurryStack.push({ op: "!", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
+                case "and":
+                    this.opCurryStack.push({ op: "&&", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
+                case "or":
+                    this.opCurryStack.push({ op: "||", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
                 case "negate":
-                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "add":
-                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "sub":
-                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                case "subtract":
+                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "multiply":
-                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "divide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "integerdivide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                case "integerDivide":
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "equal":
-                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "lessthan":
-                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                case "notEqual":
+                    this.opCurryStack.push({ op: "!=", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "greaterthan":
-                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                case "lessThan":
+                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "tofloat":
-                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
+                case "lessThanOrEqual":
+                    this.opCurryStack.push({ op: "<=", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "isempty":
-                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
+                case "greaterThan":
+                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
+                case "greaterThanOrEqual":
+                    this.opCurryStack.push({ op: ">=", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
+                case "toFloat":
+                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
+                case "isEmpty":
+                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "length":
-                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, revargs: false, postaction: ".toInt()", "args": [] });
+                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "map":
-                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, revargs: true, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, iscons: false, revargs: true, postaction: undefined, "args": [] });
                     break;
                 case "sum":
-                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 default:
-                    this.opCurryStack.push({ op: rr, isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: rr, isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
             }
 
@@ -268,6 +287,9 @@ class Transpiler {
             else if(ffunc.isdot) {
                 op = `(${ffunc.args[0]}).${ffunc.op}(${ffunc.args.slice(1).join(", ")})`;
             }
+            else if(ffunc.iscons) {
+                op = `${ffunc.op}@{${ffunc.args.join(", ")}}`;
+            }
             else {
                 op = `${ffunc.op}(${ffunc.args.join(", ")})`;
             }
@@ -294,12 +316,11 @@ class Transpiler {
         const toplevel = cscope.length === 0;
 
         //get var + value assign
-        const ttype = this.processType(jv[1]);
         const vname = this.processNameAsVarOrField(jv[2]);
         const vvalue = this.processValue(jv[3].body, EvalMode.Exp, true);
 
         //push onto current scope list
-        cscope.push(`const ${vname}: ${ttype} = ${vvalue};`);
+        cscope.push(`let ${vname} = ${vvalue};`);
 
         //compute in value
         //if this was the first let entry (then we need to make a block structure statment -- either yield or return)
@@ -425,7 +446,7 @@ class Transpiler {
 
     processFunctionDef(name: string, jv: any): string {
         const args = jv.inputTypes.map((arg: any) => {
-            const vv = arg[0][0];
+            const vv = this.processNameAsVarOrField(arg[0]);
             const tt = this.processType(arg[1])
 
             return `${vv}: ${tt}`;
@@ -485,7 +506,7 @@ function loadMainModule(jv: any): string {
     const cdecls = jv.distribution[3].modules.map((mm: any) => {
         const mdef = mm.def[1];
         const mdecls: string[] = mdef.values.map((vv: any) => {
-            const name = vv[0][0];
+            const name = jconv.processNameAsFunction(vv[0]);
             console.log(`Processing ${name}...`);
 
             const decl = jconv.processFunctionDef(name, vv[1][1]);
@@ -498,7 +519,7 @@ function loadMainModule(jv: any): string {
 
     const tdecls = ([] as string[]).concat(...ddecls);
     const fdecls = ([] as string[]).concat(...cdecls);
-    return "namespace NSMain;\n\n" + tdecls.join("\n") + fdecls.join("\n");
+    return "namespace NSMain;\n\n" + tdecls.join("\n\n") + "\n\n" + fdecls.join("\n\n");
 }
 
 function transpile(jv: object): string {

@@ -1,10 +1,105 @@
 namespace NSMain;
 
-function categorize(forecast: Forecast): WindCategory {
-    const windCategory: WindCategory = categorizeWind(forecast.windSpeed.max);
+typedef Celcius = Int;
+
+typedef Forecast = {temp: {low: Celcius, high: Celcius}, windSpeed: {min: MPH, max: MPH}, windDirection: WindDirection, shortForcast: ForecastDetail, forecastPercent: ForecastPercent};
+
+enum ForecastDetail {
+    fog,
+    showers,
+    snow,
+    thunderstorms
+}
+
+typedef ForecastPercent = Float;
+
+typedef MPH = Int;
+
+enum WindDirection {
+    east,
+    north,
+    south,
+    west
+}
+
+typedef AllowPartials = Bool;
+
+typedef Availability = Int;
+
+typedef CurrentInventory = Int;
+
+typedef ExistingReservations = Int;
+
+enum ExpertiseLevel {
+    expert,
+    intermediate,
+    novice
+}
+
+typedef PendingReturns = Int;
+
+enum Reason {
+    closedDueToConditions,
+    insufficientAvailability
+}
+
+typedef RequestedQuantity = Int;
+
+typedef ReservedQuantity = Int;
+
+enum WindCategory {
+    calm,
+    dangerousWinds,
+    highWinds,
+    windy
+}
+
+function categorizeWindForForecast(forecast: Forecast): WindCategory {
+    let windCategory = categorizeWind(forecast.windSpeed.max);
     return windCategory;
 }
-function process(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requested: RequestedQuantity, allow: AllowPartials): Result {
-    const windCategory: Result = categorizeWindForForecast(forecast);
+
+function main(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<Reason, ReservedQuantity> {
+    let windCategory = categorizeWindForForecast(forecast);
     return decide(windCategory, forecast.shortForcast, inventory, reservations, returns, requestedQuantity, allowPartials);
+}
+
+function decide(windCategory: WindCategory, forecastDetail: ForecastDetail, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<Reason, ReservedQuantity> {
+    let isClosed = ((windCategory == WindCategory::dangerousWinds) || (forecastDetail == ForecastDetail::thunderstorms));
+    let availability = ((inventory - reservations) + returns);
+    if (isClosed) {
+        return err(Reason::closedDueToConditions);
+    }
+    else {
+        if ((requestedQuantity <= availability)) {
+            return ok(requestedQuantity);
+        }
+        else {
+            if (allowPartials) {
+                return ok(availability);
+            }
+            else {
+                return err(Reason::insufficientAvailability);
+            }
+        }
+    }
+}
+
+function categorizeWind(windSpeed: Int): WindCategory {
+    if ((windSpeed < 10i)) {
+        return WindCategory::calm;
+    }
+    else {
+        if ((windSpeed < 20i)) {
+            return WindCategory::highWinds;
+        }
+        else {
+            if ((windSpeed < 30i)) {
+                return WindCategory::windy;
+            }
+            else {
+                return WindCategory::dangerousWinds;
+            }
+        }
+    }
 }

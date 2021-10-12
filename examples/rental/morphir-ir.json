@@ -482,8 +482,7 @@
                                 ],
                                 [
                                     [
-                                        "process",
-                                        "request"
+                                        "main"
                                     ],
                                     [
                                         "public",
