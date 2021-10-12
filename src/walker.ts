@@ -78,8 +78,8 @@ class Transpiler {
             return `List<${oftype}>`;
         }
         else if(tname === "Result") {
-            const oktype = this.processType(tparams[0]);
-            const errtype = this.processType(tparams[1]);
+            const errtype = this.processType(tparams[0]);
+            const oktype = this.processType(tparams[1]);
             return `Result<${oktype}, ${errtype}>`;
         }
         else {
@@ -282,7 +282,20 @@ class Transpiler {
 
             let op = "";
             if(ffunc.isinfix) {
-                op = `(${ffunc.args[0]} ${ffunc.op} ${ffunc.args[1]})`;
+                //special case for == and != on keytypes
+                if(ffunc.op === "==" || ffunc.op === "!=") {
+                    const vvtype = this.processTypeReference(jv[3][1]);
+                    if(vvtype === "String" || this.enums.has(vvtype)){
+                        const newop = ffunc.op === "==" ? "===" : "!==";
+                        op = `(${ffunc.args[0]} ${newop} ${ffunc.args[1]})`;
+                    }
+                    else {
+                        op = `(${ffunc.args[0]} ${ffunc.op} ${ffunc.args[1]})`;
+                    }
+                }
+                else {
+                    op = `(${ffunc.args[0]} ${ffunc.op} ${ffunc.args[1]})`;
+                }
             }
             else if(ffunc.isdot) {
                 op = `(${ffunc.args[0]}).${ffunc.op}(${ffunc.args.slice(1).join(", ")})`;
@@ -471,7 +484,7 @@ function loadMainModule(jv: any): string {
         const mdef = mm.def[1];
         const mdecls: string[] = mdef.types.map((vv: any) => {
             const name = jconv.processNameAsType(vv[0]);
-            console.log(`Processing ${name}...`);
+            //console.log(`Processing ${name}...`);
 
             const declkind: string = vv[1][1][1][0];
             switch(declkind) {
@@ -507,7 +520,7 @@ function loadMainModule(jv: any): string {
         const mdef = mm.def[1];
         const mdecls: string[] = mdef.values.map((vv: any) => {
             const name = jconv.processNameAsFunction(vv[0]);
-            console.log(`Processing ${name}...`);
+            //console.log(`Processing ${name}...`);
 
             const decl = jconv.processFunctionDef(name, vv[1][1]);
 

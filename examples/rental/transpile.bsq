@@ -59,13 +59,13 @@ function categorizeWindForForecast(forecast: Forecast): WindCategory {
     return windCategory;
 }
 
-function main(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<Reason, ReservedQuantity> {
+function main(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<ReservedQuantity, Reason> {
     let windCategory = categorizeWindForForecast(forecast);
     return decide(windCategory, forecast.shortForcast, inventory, reservations, returns, requestedQuantity, allowPartials);
 }
 
-function decide(windCategory: WindCategory, forecastDetail: ForecastDetail, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<Reason, ReservedQuantity> {
-    let isClosed = ((windCategory == WindCategory::dangerousWinds) || (forecastDetail == ForecastDetail::thunderstorms));
+function decide(windCategory: WindCategory, forecastDetail: ForecastDetail, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<ReservedQuantity, Reason> {
+    let isClosed = ((windCategory === WindCategory::dangerousWinds) || (forecastDetail === ForecastDetail::thunderstorms));
     let availability = ((inventory - reservations) + returns);
     if (isClosed) {
         return err(Reason::closedDueToConditions);
