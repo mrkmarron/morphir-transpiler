@@ -32,6 +32,7 @@ class Transpiler {
     private opCurryStack: CurryStackEntry[] = [];
 
     enums: Set<string> = new Set<string>();
+    sourcelocs: Map<string, object> = new Map<string, object>();
 
     processNameAsFunction(name: string | string[]): string {
         if(typeof(name) === "string") {
@@ -332,8 +333,14 @@ class Transpiler {
         const vname = this.processNameAsVarOrField(jv[2]);
         const vvalue = this.processValue(jv[3].body, EvalMode.Exp, true);
 
+        let posstr = "";
+        if(jv[1][4] !== undefined && jv[1][4][0] === "sourceInformation") {
+            posstr = `/*LL#${this.sourcelocs.size}*/ `;
+            this.sourcelocs.set(posstr.trim(), jv[1][4]);
+        }
+
         //push onto current scope list
-        cscope.push(`let ${vname} = ${vvalue};`);
+        cscope.push(`${posstr}let ${vname} = ${vvalue};`);
 
         //compute in value
         //if this was the first let entry (then we need to make a block structure statment -- either yield or return)
@@ -416,12 +423,32 @@ class Transpiler {
         }
     }
 
+    processResultActionForValueWSPOS(mode: EvalMode, value: string, spos: any[], indent?: string): string {
+        const idtstr = indent || "";
+
+        let posstr = "";
+        if(spos[4] !== undefined && spos[4][0] === "sourceInformation") {
+            posstr = `/*LL#${this.sourcelocs.size}*/ `;
+            this.sourcelocs.set(posstr.trim(), spos[4]);
+        }
+
+        if(mode === EvalMode.Stmt) {
+            return `${posstr}${idtstr}return ${value};`;
+        }
+        else if(mode === EvalMode.ExpStmt) {
+            return `${posstr}${idtstr}yield ${value};`;
+        }
+        else {
+            return `${idtstr}${value}`;
+        }
+    }
+
     processValue(v: any[], mode: EvalMode, force: boolean, indent?: string): string {
         switch(v[0]) {
             case "literal":
                 return this.processResultActionForValue(mode, this.processLiteral(v), indent);
             case "constructor":
-                return this.processResultActionForValue(mode, this.processConstructor(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processConstructor(v), v[1], indent);
             case "tuple":
                 return this.processResultActionForValue(mode, this.processTuple(v), indent);
             case "record":
@@ -435,7 +462,7 @@ class Transpiler {
             case "field_function":
                 return this.processResultActionForValue(mode, this.processFieldFunction(v), indent);
             case "apply":
-                return this.processResultActionForValue(mode, this.processApply(v, force), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processApply(v, force), v[1], indent);
             case "lambda":
                 assert(mode === EvalMode.Exp);
                 return this.processLambda(v);
@@ -477,7 +504,7 @@ class Transpiler {
     }
 }
 
-function loadMainModule(jv: any): string {
+function loadMainModule(jv: any): [string, Map<string, object>] {
     const jconv: Transpiler = new Transpiler();
 
     const ddecls = jv.distribution[3].modules.map((mm: any) => {
@@ -532,10 +559,13 @@ function loadMainModule(jv: any): string {
 
     const tdecls = ([] as string[]).concat(...ddecls);
     const fdecls = ([] as string[]).concat(...cdecls);
-    return "namespace NSMain;\n\n" + tdecls.join("\n\n") + "\n\n" + fdecls.join("\n\n");
+    return [
+        "namespace NSMain;\n\n" + tdecls.join("\n\n") + "\n\n" + fdecls.join("\n\n"),
+        jconv.sourcelocs
+    ];
 }
 
-function transpile(jv: object): string {
+function transpile(jv: object): [string, Map<string, object>] {
     return loadMainModule(jv);
 }
 

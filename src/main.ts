@@ -3,6 +3,7 @@ import * as Path from "path";
 
 import { transpile } from "./walker";
 import { exec, execSync } from "child_process";
+import { remapOutput } from "./src_remap";
 
 const BSQ_ROOT = Path.join(__dirname, "../../BosqueLanguage/impl");
 
@@ -40,9 +41,11 @@ const srcfile = Path.normalize(mir_src);
 const dstfile = Path.join(Path.parse(srcfile).dir, "transpile.bsq");
 
 process.stdout.write(`Transpiling MorphirIR in ${srcfile}...\n`);
+let bsqcode = ""
+let sourcelocs = new Map<string, object>();
 try {
     const source_ir = FS.readFileSync(srcfile).toString();
-    const bsqcode = transpile(JSON.parse(source_ir));
+    [bsqcode, sourcelocs] = transpile(JSON.parse(source_ir));
 
     process.stdout.write(`Writing Bosque source to ${dstfile}...\n`);
     FS.writeFileSync(dstfile, bsqcode);
@@ -59,17 +62,23 @@ if(args[0] === "--convert") {
 process.stdout.write(`Running Bosque checker...\n`);
 
 const cmd = BSQ_CHECK_CMD + dstfile;
-const chkproc = exec(cmd, (err) => {
+exec(cmd, (err, out) => {
     if(err) {
         process.stderr.write(`${err}`);
         process.exit(1);
     }
     else {
+        if(sourcelocs.size === 0) {
+            process.stdout.write(`${out}\n`);
+        }
+        else {
+            const remap = remapOutput(out, bsqcode, sourcelocs);
+            process.stdout.write(`${JSON.stringify(remap, undefined, 4)}\n`);
+        }
+
         process.stdout.write(`Done!\n`);
         process.exit(0);
     }
 });
 
-chkproc.stdout.on("data", (data) => {
-    process.stdout.write(data);
-});
+
