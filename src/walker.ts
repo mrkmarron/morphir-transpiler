@@ -27,22 +27,29 @@ type CurryStackEntry = {
 const FUNCTION_TAG = "[FUNCTION]";
 
 class Transpiler {
-    private nameMap: Map<string, string> = new Map<string, string>(); 
-
     private scopeStack: LetStackEntry[] = [];
     private opCurryStack: CurryStackEntry[] = [];
 
-    private internName(name: string): string {
-        if(!this.nameMap.has(name)) {
-            const nname = name.replace("::", "__");
-            this.nameMap.set(name, nname);
-        }
+    enums: Set<string> = new Set<string>();
 
-        return this.nameMap.get(name) as string;
+    processNameAsFunction(name: string | string[]): string {
+        if(typeof(name) === "string") {
+            return name[0].toLowerCase() + name.slice(1);
+        } 
+        else {
+            const lname = name[0][0].toLowerCase() + name[0].slice(1);
+            return lname + name.slice(1).map((nn) => nn[0].toUpperCase() + nn.slice(1)).join("");
+        }
     }
 
-    processName(name: string | string[]): string {
-        return Array.isArray(name) ? name.join("") : name;
+    processNameAsVarOrField(name: string | string[]): string {
+        if(typeof(name) === "string") {
+            return name[0].toLowerCase() + name.slice(1);
+        } 
+        else {
+            const lname = name[0][0].toLowerCase() + name[0].slice(1);
+            return lname + name.slice(1).map((nn) => nn[0].toUpperCase() + nn.slice(1)).join("");
+        }
     }
 
     processNameAsType(name: string | string[]): string {
@@ -52,14 +59,6 @@ class Transpiler {
         else {
             return name.map((nn) => nn[0].toUpperCase() + nn.slice(1)).join("");
         }
-    }
-
-    processPath(path: any[]): string {
-        return path.map((n) => this.processName(n)).join("_");
-    }
-    
-    processFQN(fqn: any[]): string {
-        return this.processPath(fqn[0]) + "::" + this.processPath(fqn[1]) + "::" + this.processName(fqn[2]);
     }
 
     processTypeVariable(jv: any[]): string {
@@ -72,24 +71,18 @@ class Transpiler {
 
         const tparams = jv[3];
 
-        const fqn = this.processFQN(jv[2]);
-        switch(fqn) {
-            case "morphir_sdk::basics::bool": 
-                return "Bool";
-            case "morphir_sdk::basics::int": 
-                return "Int";
-            case "morphir_sdk::basics::float": 
-                return "Float";
-            case "morphir_sdk::basics::decimal": 
-                return "Decmial";
-            case "morphir_sdk::list::list": {
-                const oftype = this.processType(tparams[0]);
-                return `List<${oftype}>`;
-            }
-            default:
-                const tname = this.processNameAsType(jv[2][2]);
-                const ctname = (tname as string)[0].toUpperCase() + (tname as string).slice(1);
-                return this.internName(ctname);
+        const tname = this.processNameAsType(jv[2][2]);
+        if (tname === "List") {
+            const oftype = this.processType(tparams[0]);
+            return `List<${oftype}>`;
+        }
+        else if(tname === "Result") {
+            const oktype = this.processType(tparams[0]);
+            const errtype = this.processType(tparams[1]);
+            return `Result<${oktype}, ${errtype}>`;
+        }
+        else {
+            return tname;
         }
     }
 
@@ -145,7 +138,28 @@ class Transpiler {
     }
 
     processConstructor(jv: any[]): string {
-        return notImplemented("processConstructor");
+        if(jv[1][0] !== "function") {
+            //it is an enum?
+            const consname = this.processNameAsType(jv[1][2][2]);
+            assert(this.enums.has(consname));
+
+            const ename = this.processNameAsVarOrField(jv[2][2]);
+            return `${consname}::${ename}`;
+        }
+        else {
+            const op = this.processNameAsType(jv[2][2]);
+            
+            if(op === "Ok" || op === "Err") {
+                //const val = this.processValue(jv[1], EvalMode.Exp, true);
+                //return op === "Ok" ? `ok(${val})` : `err(${val})`;
+
+                return "[CONS]";
+            }
+            else {
+                assert(false, "How do the args work??");
+                return "????";
+            }
+        }
     }
 
     processTuple(jv: any[]): string {
@@ -157,61 +171,61 @@ class Transpiler {
     }
 
     processVariable(jv: any[]): string {
-        return this.processName(jv[2]);
+        return this.processNameAsVarOrField(jv[2]);
     }
 
     processReference(jv: any[]): string {
-        const rr = this.processFQN(jv[2]);
-
         if (jv[1][0] !== "function") {
-            return this.internName(rr);
+            return this.processNameAsVarOrField(jv[2][2]);
         }
         else {
+            const rr = this.processNameAsFunction(jv[2][2]);
+
             switch (rr) {
-                case "morphir_sdk::basics::negate":
+                case "negate":
                     this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::add":
+                case "add":
                     this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::sub":
+                case "sub":
                     this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::multiply":
+                case "multiply":
                     this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::divide":
+                case "divide":
                     this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::integerdivide":
+                case "integerdivide":
                     this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::equal":
+                case "equal":
                     this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::lessthan":
+                case "lessthan":
                     this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::greaterthan":
+                case "greaterthan":
                     this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::basics::tofloat":
+                case "tofloat":
                     this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::list::isempty":
+                case "isempty":
                     this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::list::length":
+                case "length":
                     this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
-                case "morphir_sdk::list::map":
+                case "map":
                     this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, revargs: true, postaction: undefined, "args": [] });
                     break;
-                case "morphir_sdk::list::sum":
+                case "sum":
                     this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, revargs: false, postaction: undefined, "args": [] });
                     break;
                 default:
-                    this.opCurryStack.push({ op: this.internName(rr), isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: rr, isinfix: false, isdot: false, revargs: false, postaction: undefined, "args": [] });
                     break;
             }
 
@@ -221,7 +235,7 @@ class Transpiler {
 
     processField(jv: any[]): string {
         const ee = this.processValue(jv[2], EvalMode.Exp, true);
-        const ff = this.processName(jv[3]);
+        const ff = this.processNameAsVarOrField(jv[3]);
         
         return `${ee}.${ff}`;
     }
@@ -280,11 +294,12 @@ class Transpiler {
         const toplevel = cscope.length === 0;
 
         //get var + value assign
-        const vname = this.processName(jv[2]);
+        const ttype = this.processType(jv[1]);
+        const vname = this.processNameAsVarOrField(jv[2]);
         const vvalue = this.processValue(jv[3].body, EvalMode.Exp, true);
 
         //push onto current scope list
-        cscope.push(`const ${vname} = ${vvalue};`);
+        cscope.push(`const ${vname}: ${ttype} = ${vvalue};`);
 
         //compute in value
         //if this was the first let entry (then we need to make a block structure statment -- either yield or return)
@@ -431,14 +446,59 @@ class Transpiler {
 function loadMainModule(jv: any): string {
     const jconv: Transpiler = new Transpiler();
 
-    const decls = jv.distribution[3].modules[0].def[1].values.map((vv: any) => {
-        const name = vv[0][0];
-        const decl = jconv.processFunctionDef(name, vv[1][1]);
+    const ddecls = jv.distribution[3].modules.map((mm: any) => {
+        const mdef = mm.def[1];
+        const mdecls: string[] = mdef.types.map((vv: any) => {
+            const name = jconv.processNameAsType(vv[0]);
+            console.log(`Processing ${name}...`);
 
-        return decl;
+            const declkind: string = vv[1][1][1][0];
+            switch(declkind) {
+                case "type_alias_definition": {
+                    const oftype = jconv.processType(vv[1][1][1][2]);
+                    return `typedef ${name} = ${oftype};`; 
+                }
+                case "custom_type_definition": {
+                    const tdecl = vv[1][1][1][2];
+                    if (tdecl[1].every((dd: any[]) => dd[1].length === 0)) {
+                        //it is an enum
+                        jconv.enums.add(name);
+
+                        const enames = tdecl[1].map((ev: any[]) => jconv.processNameAsVarOrField(ev[0])).join(",\n    ");
+                        return `enum ${name} {\n    ${enames}\n}`;
+                    }
+                    else {
+                        //it is a real ADT
+                        assert(false, "adt decl");
+                    }
+                }
+                default: {
+                    assert(false, "type decl");
+                    return "!!!";
+                }
+            }
+        });
+
+        return mdecls;
     });
 
-    return "namespace NSMain;\n\n" + decls.join("\n");
+    const cdecls = jv.distribution[3].modules.map((mm: any) => {
+        const mdef = mm.def[1];
+        const mdecls: string[] = mdef.values.map((vv: any) => {
+            const name = vv[0][0];
+            console.log(`Processing ${name}...`);
+
+            const decl = jconv.processFunctionDef(name, vv[1][1]);
+
+            return decl;
+        });
+
+        return mdecls;
+    });
+
+    const tdecls = ([] as string[]).concat(...ddecls);
+    const fdecls = ([] as string[]).concat(...cdecls);
+    return "namespace NSMain;\n\n" + tdecls.join("\n") + fdecls.join("\n");
 }
 
 function transpile(jv: object): string {
