@@ -1,5 +1,36 @@
 namespace NSMain;
 
+typedef AllowPartials = Bool;
+
+typedef Availability = Int;
+
+typedef CancelationRatio = Float;
+
+typedef CanceledQuantity = Int;
+
+typedef CurrentInventory = Int;
+
+typedef ExistingReservations = Int;
+
+enum ExpertiseLevel {
+    expert,
+    intermediate,
+    novice
+}
+
+typedef PendingReturns = Int;
+
+typedef ProbableReservations = Int;
+
+enum Reason {
+    closedDueToConditions,
+    insufficientAvailability
+}
+
+typedef RequestedQuantity = Int;
+
+typedef ReservationQuantity = Int;
+
 typedef Celcius = Int;
 
 typedef Forecast = {temp: {low: Celcius, high: Celcius}, windSpeed: {min: MPH, max: MPH}, windDirection: WindDirection, shortForcast: ForecastDetail, forecastPercent: ForecastPercent};
@@ -22,31 +53,6 @@ enum WindDirection {
     west
 }
 
-typedef AllowPartials = Bool;
-
-typedef Availability = Int;
-
-typedef CurrentInventory = Int;
-
-typedef ExistingReservations = Int;
-
-enum ExpertiseLevel {
-    expert,
-    intermediate,
-    novice
-}
-
-typedef PendingReturns = Int;
-
-enum Reason {
-    closedDueToConditions,
-    insufficientAvailability
-}
-
-typedef RequestedQuantity = Int;
-
-typedef ReservedQuantity = Int;
-
 enum WindCategory {
     calm,
     dangerousWinds,
@@ -54,32 +60,44 @@ enum WindCategory {
     windy
 }
 
+function probableReservations(averageReservationRequests: ReservationQuantity, averageCancelations: CanceledQuantity, currentReservationCount: ReservationQuantity): ProbableReservations {
+    let cancelationRatio = ((averageCancelations).toFloat() / (averageReservationRequests).toFloat());
+    let result = (((currentReservationCount).toFloat() * (1.0f - cancelationRatio))).ceiling().toInt();
+    return result;
+}
+
 function categorizeWindForForecast(forecast: Forecast): WindCategory {
     let windCategory = categorizeWind(forecast.windSpeed.max);
     return windCategory;
 }
 
-function main(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<ReservedQuantity, Reason> {
+function main(forecast: Forecast, inventory: CurrentInventory, reservations: ExistingReservations, reservationQuantity: ReservationQuantity, canceledQuantity: CanceledQuantity, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<ReservationQuantity, Reason> {
     let windCategory = categorizeWindForForecast(forecast);
-    return decide(windCategory, forecast.shortForcast, inventory, reservations, returns, requestedQuantity, allowPartials);
+    let estimatedReservations = probableReservations(reservationQuantity, canceledQuantity, reservations);
+    return decide(windCategory, forecast.shortForcast, inventory, estimatedReservations, returns, requestedQuantity, allowPartials);
 }
 
-function decide(windCategory: WindCategory, forecastDetail: ForecastDetail, inventory: CurrentInventory, reservations: ExistingReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<ReservedQuantity, Reason> {
+function decide(windCategory: WindCategory, forecastDetail: ForecastDetail, inventory: CurrentInventory, probableReservations: ProbableReservations, returns: PendingReturns, requestedQuantity: RequestedQuantity, allowPartials: AllowPartials): Result<ReservationQuantity, Reason> {
     let isClosed = ((windCategory === WindCategory::dangerousWinds) || (forecastDetail === ForecastDetail::thunderstorms));
-    let availability = ((inventory - reservations) + returns);
+    let availability = ((inventory - probableReservations) + returns);
     if (isClosed) {
         return err(Reason::closedDueToConditions);
     }
     else {
-        if ((requestedQuantity <= availability)) {
-            return ok(requestedQuantity);
+        if ((availability == 0i)) {
+            return err(Reason::insufficientAvailability);
         }
         else {
-            if (allowPartials) {
-                return ok(availability);
+            if ((requestedQuantity <= availability)) {
+                return ok(requestedQuantity);
             }
             else {
-                return err(Reason::insufficientAvailability);
+                if (allowPartials) {
+                    return ok(availability);
+                }
+                else {
+                    return err(Reason::insufficientAvailability);
+                }
             }
         }
     }

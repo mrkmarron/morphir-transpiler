@@ -232,6 +232,9 @@ class Transpiler {
                 case "toFloat":
                     this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
+                case "ceiling":
+                    this.opCurryStack.push({ op: "ceiling", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    break;
                 case "isEmpty":
                     this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;

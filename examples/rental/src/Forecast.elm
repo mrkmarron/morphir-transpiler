@@ -1,5 +1,8 @@
 module Morphir.Example.App.Forecast exposing (..)
 
+{-| Forecast represents the API from an external weather forecast provider.
+-}
+
 
 type alias MPH =
     Int
@@ -34,4 +37,3 @@ type alias Forecast =
     , shortForcast : ForecastDetail
     , forecastPercent : ForecastPercent
     }
-    
