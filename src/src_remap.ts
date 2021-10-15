@@ -26,8 +26,7 @@ function remapOutput(output: string, src: string, srclocs: Map<string, object>):
             {
                 msg: error,
                 witness: JSON.parse(lines.slice(1).join("\n")),
-                srclocation: sloc,
-                bosque: src
+                srclocation: sloc
             }
         ]
     }

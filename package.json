@@ -19,6 +19,14 @@
         "chalk": "~2.4.2",
         "fs-extra": "~8.1.0"
     },
+    "files": [
+        "bin/*",
+        "bsqimpl/*"
+    ],
+    "main": "bin/main.js",
+    "engines": {
+        "node": ">=10.0"
+    },
     "scripts": {
         "build": "tsc -p tsconfig.json"
     },
