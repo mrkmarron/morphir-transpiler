@@ -5,7 +5,7 @@
         "name": "Mark Marron <mark.marron@live.com>"
     },
     "license": "MIT",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "repository": {
         "type": "git",
         "url": "MISSING"
@@ -21,7 +21,8 @@
     },
     "files": [
         "bin/*",
-        "bsqimpl/*"
+        "bsqimpl/*",
+        "node_modules"
     ],
     "main": "bin/main.js",
     "engines": {
