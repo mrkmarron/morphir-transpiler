@@ -5,7 +5,7 @@ import { transpile } from "./walker";
 import { exec, execSync } from "child_process";
 import { remapOutput } from "./src_remap";
 
-const BSQ_ROOT = Path.join(__dirname, "../../BosqueLanguage/impl");
+const BSQ_ROOT = Path.join(__dirname, "../bsqimpl");
 
 const MORPHIR_ELM_IR_CMD = "morphir-elm make";
 const BSQ_CHECK_CMD = `node ${BSQ_ROOT}/bin/runtimes/bsqcheck.js --check `;
