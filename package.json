@@ -5,7 +5,7 @@
         "name": "Mark Marron <mark.marron@live.com>"
     },
     "license": "MIT",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "repository": {
         "type": "git",
         "url": "MISSING"
@@ -29,11 +29,5 @@
     },
     "scripts": {
         "build": "tsc -p tsconfig.json"
-    },
-    "files": [
-        "bin/*"
-    ],
-    "engines": {
-        "node": ">=10.0"
     }
 }
