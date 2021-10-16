@@ -21,13 +21,15 @@
     },
     "files": [
         "bin/*",
-        "bsqimpl/*"
+        "bsqimpl/*",
+        "deps/*"
     ],
     "main": "bin/main.js",
     "engines": {
         "node": ">=10.0"
     },
     "scripts": {
-        "build": "tsc -p tsconfig.json"
+        "build": "tsc -p tsconfig.json",
+        "postinstall": "node ./bsqimpl/move_modules.js"
     }
 }
