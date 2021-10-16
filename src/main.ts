@@ -5,7 +5,7 @@ import { transpile } from "./walker";
 import { exec } from "child_process";
 import { remapOutput } from "./src_remap";
 
-const BSQ_ROOT = Path.join(__dirname, "../bsqimpl");
+const BSQ_ROOT = Path.join(__dirname, "../bsqdep/impl");
 const BSQ_CHECK_CMD = `node ${BSQ_ROOT}/bin/runtimes/bsqcheck.js --check `;
 
 function bosque_check_ir(ir: object, cb: (err: any, result: object) => void): void {

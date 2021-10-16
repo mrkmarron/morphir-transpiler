@@ -30,6 +30,6 @@
     },
     "scripts": {
         "build": "tsc -p tsconfig.json",
-        "postinstall": "node ./bsqimpl/move_modules.js"
+        "postinstall": "node ./deps.js"
     }
 }
