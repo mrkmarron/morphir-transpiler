@@ -1,4 +1,4 @@
 const execSync = require('child_process').execSync;
 
-execSync("git clone bsqdep https://github.com/microsoft/BosqueLanguage.git");
-execSync("npm install && npm run-script build", {cwd: "./bsqdep"});
+execSync("git clone https://github.com/microsoft/BosqueLanguage.git bsqdep");
+execSync("npm install && npm run-script build", {cwd: "./bsqdep/impl"});
