@@ -1,3 +1,6 @@
 /node_modules
 /bin
 /.vscode
+
+!bsqimpl/node_modules/
+bsqimpl/node_modules/*
