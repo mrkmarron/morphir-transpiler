@@ -62,6 +62,7 @@ if(args[0] === "--convert") {
 process.stdout.write(`Running Bosque checker...\n`);
 
 const cmd = BSQ_CHECK_CMD + dstfile;
+console.log(cmd);
 exec(cmd, (err, out) => {
     if(err) {
         process.stderr.write(`${err}`);
