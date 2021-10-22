@@ -380,6 +380,12 @@ class Transpiler {
 
         const test = this.processValue(jv[2], EvalMode.Exp, true);
 
+        let posstr = "";
+        if(jv[1][4] !== undefined && jv[1][4][0] === "sourceInformation") {
+            posstr = `/*LL#${this.sourcelocs.size}*/ `;
+            this.sourcelocs.set(posstr.trim(), jv[1][4]);
+        }
+
         this.scopeStack.push([]);
         const tval = this.processValue(jv[3], mode !== EvalMode.Stmt ? EvalMode.Exp : EvalMode.Stmt, true, nindent);
         this.scopeStack.pop();
@@ -390,7 +396,7 @@ class Transpiler {
 
         const rindent = (indent || "");
         if(mode === EvalMode.Stmt) {
-            return `${rindent}if (${test}) {\n${tval}\n${rindent}}\n${rindent}else {\n${fval}\n${rindent}}`;
+            return `${rindent}${posstr}if (${test}) {\n${tval}\n${rindent}}\n${rindent}else {\n${fval}\n${rindent}}`;
         }
         else {
             const sep = indent !== undefined ? "\n" : " ";
@@ -449,19 +455,19 @@ class Transpiler {
     processValue(v: any[], mode: EvalMode, force: boolean, indent?: string): string {
         switch(v[0]) {
             case "literal":
-                return this.processResultActionForValue(mode, this.processLiteral(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processLiteral(v), v[1], indent);
             case "constructor":
                 return this.processResultActionForValueWSPOS(mode, this.processConstructor(v), v[1], indent);
             case "tuple":
-                return this.processResultActionForValue(mode, this.processTuple(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processTuple(v), v[1], indent);
             case "record":
-                return this.processResultActionForValue(mode, this.processRecord(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processRecord(v), v[1], indent);
             case "variable":
-                return this.processResultActionForValue(mode, this.processVariable(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processVariable(v), v[1], indent);
             case "reference":
-                return this.processResultActionForValue(mode, this.processReference(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processReference(v), v[1], indent);
             case "field":
-                return this.processResultActionForValue(mode, this.processField(v), indent);
+                return this.processResultActionForValueWSPOS(mode, this.processField(v), v[1], indent);
             case "field_function":
                 return this.processResultActionForValue(mode, this.processFieldFunction(v), indent);
             case "apply":
