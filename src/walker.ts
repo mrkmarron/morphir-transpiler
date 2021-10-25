@@ -232,8 +232,17 @@ class Transpiler {
                 case "toFloat":
                     this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
                     break;
+                case "toInt":
+                    this.opCurryStack.push({ op: "toInt", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    break;
+                case "floor":
+                    this.opCurryStack.push({ op: "floor", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    break;
                 case "ceiling":
                     this.opCurryStack.push({ op: "ceiling", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    break;
+                case "truncate":
+                    this.opCurryStack.push({ op: "truncate", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "isEmpty":
                     this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
