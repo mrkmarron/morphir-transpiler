@@ -400,7 +400,7 @@ class Transpiler {
         }
         else {
             const sep = indent !== undefined ? "\n" : " ";
-            const ee = `${indent}if (${test})${sep}${tval}${sep}else${sep}${fval}`;
+            const ee = `${sep}if (${test})${sep}${tval}${sep}else${sep}${fval}`;
             if(mode === EvalMode.Exp) {
                 return rindent + ee;
             }
