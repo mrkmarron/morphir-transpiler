@@ -20,6 +20,7 @@ type CurryStackEntry = {
     isinfix: boolean;
     isdot: boolean;
     iscons: boolean,
+    ispredfunctor: boolean,
     revargs: boolean;
     postaction: string | undefined;
     args: string[];
@@ -32,7 +33,6 @@ class Transpiler {
     private opCurryStack: CurryStackEntry[] = [];
 
     enums: Set<string> = new Set<string>();
-    sourcelocs: Map<string, object> = new Map<string, object>();
 
     processNameAsFunction(name: string | string[]): string {
         if(typeof(name) === "string") {
@@ -63,20 +63,22 @@ class Transpiler {
         }
     }
 
-    processTypeVariable(jv: any[]): string {
-       return notImplemented("TypeVariable");
-    }
-
     processTypeReference(jv: any[]): string {
-        //const atag = jv[1];
-        //assert(Object.keys(atag).length == 0);
-
         const tparams = jv[3];
 
         const tname = this.processNameAsType(jv[2][2]);
         if (tname === "List") {
             const oftype = this.processType(tparams[0]);
             return `List<${oftype}>`;
+        }
+        else if(tname === "Map") {
+            const ktype = this.processType(tparams[0]);
+            const vtype = this.processType(tparams[1]);
+            return `Map<${ktype}, ${vtype}>`;
+        }
+        else if(tname === "Option") {
+            const ttype = this.processType(tparams[0]);
+            return `Option<${ttype}>`;
         }
         else if(tname === "Result") {
             const errtype = this.processType(tparams[0]);
@@ -89,7 +91,11 @@ class Transpiler {
     }
 
     processTypeTuple(jv: any[]): string {
-        return notImplemented("TypeTuple");
+        const entries = jv[2].map((ee: any) => {
+            return `${this.processType(ee[1])}`;
+        });
+
+        return "[" + entries.join(", ") + "]";
     }
 
     processTypeRecord(jv: any[]): string {
@@ -102,8 +108,6 @@ class Transpiler {
 
     processType(jv: any[]): string {
         switch(jv[0]) {
-            case "variable":
-                return this.processTypeVariable(jv);
             case "reference":
                 return this.processTypeReference(jv);
             case "tuple":
@@ -151,13 +155,16 @@ class Transpiler {
         else {
             const ctype = this.processNameAsType(jv[2][2]);
             if(ctype === "Ok") {
-                this.opCurryStack.push({ op: "ok", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                this.opCurryStack.push({ op: "ok", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
             }
             else if(ctype === "Err") {
-                this.opCurryStack.push({ op: "err", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                this.opCurryStack.push({ op: "err", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
+            }
+            if(ctype === "Some") {
+                this.opCurryStack.push({ op: "some", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
             }
             else {
-                this.opCurryStack.push({ op: ctype, isinfix: false, isdot: false, iscons: true, revargs: false, postaction: undefined, "args": [] });
+                this.opCurryStack.push({ op: ctype, isinfix: false, isdot: false, iscons: true, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
             }
 
             return FUNCTION_TAG;
@@ -185,79 +192,82 @@ class Transpiler {
 
             switch (rr) {
                 case "not":
-                    this.opCurryStack.push({ op: "!", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "!", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "and":
-                    this.opCurryStack.push({ op: "&&", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "&&", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "or":
-                    this.opCurryStack.push({ op: "||", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "||", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "negate":
-                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "add":
-                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "+", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "subtract":
-                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "-", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "multiply":
-                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "*", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "divide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "integerDivide":
-                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "/", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "equal":
-                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "==", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "notEqual":
-                    this.opCurryStack.push({ op: "!=", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "!=", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "lessThan":
-                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "<", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "lessThanOrEqual":
-                    this.opCurryStack.push({ op: "<=", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "<=", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "greaterThan":
-                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: ">", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "greaterThanOrEqual":
-                    this.opCurryStack.push({ op: ">=", isinfix: true, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: ">=", isinfix: true, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "toFloat":
-                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "toFloat", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "toInt":
-                    this.opCurryStack.push({ op: "toInt", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "toInt", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "floor":
-                    this.opCurryStack.push({ op: "floor", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    this.opCurryStack.push({ op: "floor", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "ceiling":
-                    this.opCurryStack.push({ op: "ceiling", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    this.opCurryStack.push({ op: "ceiling", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "truncate":
-                    this.opCurryStack.push({ op: "truncate", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    this.opCurryStack.push({ op: "truncate", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "isEmpty":
-                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "empty", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 case "length":
-                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: ".toInt()", "args": [] });
+                    this.opCurryStack.push({ op: "size", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: ".toInt()", "args": [] });
                     break;
                 case "map":
-                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, iscons: false, revargs: true, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: true, postaction: undefined, "args": [] });
+                    break;
+                case "filter":
+                    this.opCurryStack.push({ op: "map", isinfix: false, isdot: true, iscons: false, ispredfunctor: true, revargs: true, postaction: undefined, "args": [] });
                     break;
                 case "sum":
-                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: "sum", isinfix: false, isdot: true, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
                 default:
-                    this.opCurryStack.push({ op: rr, isinfix: false, isdot: false, iscons: false, revargs: false, postaction: undefined, "args": [] });
+                    this.opCurryStack.push({ op: rr, isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
                     break;
             }
 
@@ -328,12 +338,12 @@ class Transpiler {
         }
     }
     
-    processLambda(jv: any[]): string {
+    processLambda(jv: any[], ispred: boolean): string {
         //const rtype = this.processType(jv[1][3]);
         const vvar = jv[2][3];
         const body = this.processValue(jv[3], EvalMode.Exp, true);
         
-        return `fn(${vvar}) => ${body}`;
+        return `${ispred ? "pred" : "fn"}(${vvar}) => ${body}`;
     }
 
     processLet(jv: any[], mode: EvalMode, indent?: string): string {
@@ -345,14 +355,8 @@ class Transpiler {
         const vname = this.processNameAsVarOrField(jv[2]);
         const vvalue = this.processValue(jv[3].body, EvalMode.Exp, true);
 
-        let posstr = "";
-        if(jv[1][4] !== undefined && jv[1][4][0] === "sourceInformation") {
-            posstr = `/*LL#${this.sourcelocs.size}*/ `;
-            this.sourcelocs.set(posstr.trim(), jv[1][4]);
-        }
-
         //push onto current scope list
-        cscope.push(`${posstr}let ${vname} = ${vvalue};`);
+        cscope.push(`let ${vname} = ${vvalue};`);
 
         //compute in value
         //if this was the first let entry (then we need to make a block structure statment -- either yield or return)
@@ -389,12 +393,6 @@ class Transpiler {
 
         const test = this.processValue(jv[2], EvalMode.Exp, true);
 
-        let posstr = "";
-        if(jv[1][4] !== undefined && jv[1][4][0] === "sourceInformation") {
-            posstr = `/*LL#${this.sourcelocs.size}*/ `;
-            this.sourcelocs.set(posstr.trim(), jv[1][4]);
-        }
-
         this.scopeStack.push([]);
         const tval = this.processValue(jv[3], mode !== EvalMode.Stmt ? EvalMode.Exp : EvalMode.Stmt, true, nindent);
         this.scopeStack.pop();
@@ -405,7 +403,7 @@ class Transpiler {
 
         const rindent = (indent || "");
         if(mode === EvalMode.Stmt) {
-            return `${rindent}${posstr}if (${test}) {\n${tval}\n${rindent}}\n${rindent}else {\n${fval}\n${rindent}}`;
+            return `${rindent}if (${test}) {\n${tval}\n${rindent}}\n${rindent}else {\n${fval}\n${rindent}}`;
         }
         else {
             const sep = indent !== undefined ? "\n" : " ";
@@ -441,49 +439,29 @@ class Transpiler {
         }
     }
 
-    processResultActionForValueWSPOS(mode: EvalMode, value: string, spos: any[], indent?: string): string {
-        const idtstr = indent || "";
-
-        let posstr = "";
-        if(spos[4] !== undefined && spos[4][0] === "sourceInformation") {
-            posstr = `/*LL#${this.sourcelocs.size}*/ `;
-            this.sourcelocs.set(posstr.trim(), spos[4]);
-        }
-
-        if(mode === EvalMode.Stmt) {
-            return `${posstr}${idtstr}return ${value};`;
-        }
-        else if(mode === EvalMode.ExpStmt) {
-            return `${posstr}${idtstr}yield ${value};`;
-        }
-        else {
-            return `${idtstr}${value}`;
-        }
-    }
-
     processValue(v: any[], mode: EvalMode, force: boolean, indent?: string): string {
         switch(v[0]) {
             case "literal":
-                return this.processResultActionForValueWSPOS(mode, this.processLiteral(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processLiteral(v), indent);
             case "constructor":
-                return this.processResultActionForValueWSPOS(mode, this.processConstructor(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processConstructor(v), indent);
             case "tuple":
-                return this.processResultActionForValueWSPOS(mode, this.processTuple(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processTuple(v), indent);
             case "record":
-                return this.processResultActionForValueWSPOS(mode, this.processRecord(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processRecord(v), indent);
             case "variable":
-                return this.processResultActionForValueWSPOS(mode, this.processVariable(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processVariable(v), indent);
             case "reference":
-                return this.processResultActionForValueWSPOS(mode, this.processReference(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processReference(v), indent);
             case "field":
-                return this.processResultActionForValueWSPOS(mode, this.processField(v), v[1], indent);
+                return this.processResultActionForValue(mode, this.processField(v), indent);
             case "field_function":
                 return this.processResultActionForValue(mode, this.processFieldFunction(v), indent);
             case "apply":
-                return this.processResultActionForValueWSPOS(mode, this.processApply(v, force), v[1], indent);
+                return this.processResultActionForValue(mode, this.processApply(v, force), indent);
             case "lambda":
                 assert(mode === EvalMode.Exp);
-                return this.processLambda(v);
+                return this.processLambda(v, this.opCurryStack[this.opCurryStack.length].ispredfunctor);
             case "let_definition":
                 return this.processLet(v, mode, indent);
             case "let_recursion":
@@ -522,7 +500,7 @@ class Transpiler {
     }
 }
 
-function loadMainModule(jv: any): [string, Map<string, object>] {
+function loadMainModule(jv: any): string {
     const jconv: Transpiler = new Transpiler();
 
     const ddecls = jv.distribution[3].modules.map((mm: any) => {
@@ -577,13 +555,10 @@ function loadMainModule(jv: any): [string, Map<string, object>] {
 
     const tdecls = ([] as string[]).concat(...ddecls);
     const fdecls = ([] as string[]).concat(...cdecls);
-    return [
-        "namespace NSMain;\n\n" + tdecls.join("\n\n") + "\n\n" + fdecls.join("\n\n"),
-        jconv.sourcelocs
-    ];
+    return "namespace Main;\n\n" + tdecls.join("\n\n") + "\n\n" + fdecls.join("\n\n")
 }
 
-function transpile(jv: object): [string, Map<string, object>] {
+function transpile(jv: object): string {
     return loadMainModule(jv);
 }
 

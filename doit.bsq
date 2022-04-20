@@ -1,0 +1,12 @@
+namespace Main;
+
+function foo(x: Int): Int {
+  if ((x > 0i))
+  {
+    return x;
+  }
+  else
+  {
+    return (x + 1i);
+  }
+}
