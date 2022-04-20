@@ -7,7 +7,7 @@ import { exec, execSync } from "child_process";
 const BSQ_ROOT = Path.join(__dirname, "../bsqdep/impl");
 
 const MORPHIR_ELM_IR_CMD = "morphir-elm make";
-const BSQ_CHECK_CMD = `node ${BSQ_ROOT}/bin/cmd/bosque.js apptest --files `;
+const BSQ_CHECK_CMD = `node ${BSQ_ROOT}/bin/cmd/bosque.js apptest`;
 
 const args = process.argv.slice(2);
 
@@ -37,7 +37,9 @@ if(args[0] == "--elm") {
 }
 
 const srcfile = Path.normalize(mir_src);
-const dstfile = Path.join(Path.parse(srcfile).dir, "transpile.bsqapi");
+const dstdir = Path.join(Path.parse(srcfile).dir, "bsqproj");
+const dstsrc = Path.join(dstdir, "app.bsqapi");
+const dstpckg = Path.join(dstdir, "package.json");
 
 process.stdout.write(`Transpiling MorphirIR in ${srcfile}...\n`);
 let bsqcode = ""
@@ -45,8 +47,32 @@ try {
     const source_ir = FS.readFileSync(srcfile).toString();
     bsqcode = transpile(JSON.parse(source_ir));
 
-    process.stdout.write(`Writing Bosque source to ${dstfile}...\n`);
-    FS.writeFileSync(dstfile, bsqcode);
+    process.stdout.write(`Writing Bosque source to ${dstdir}...\n`);
+    if(!FS.existsSync(dstdir)) {
+        FS.mkdirSync(dstdir);
+    }
+
+    FS.writeFileSync(dstsrc, bsqcode);
+    
+    FS.writeFileSync(dstpckg, JSON.stringify(
+        {
+            "name": `transpiled-${Path.basename(srcfile, ".json")}`,
+            "version": "0.0.0.0",
+            "description": "Transpiled code for testing/analysis",
+            "license": "MIT",
+            "src": {
+                "bsqsource": [
+                ],
+                "entrypoints": [
+                    `./app.bsqapi`
+                ],
+                "testfiles": [
+                ]
+            }
+        },
+        undefined, 2
+    ));
+
 }
 catch (ex) {
     process.stderr.write(`Failed to transpile --- ${ex}`);
@@ -59,17 +85,15 @@ if(args[0] === "--convert") {
 
 process.stdout.write(`Running Bosque checker...\n`);
 
-const cmd = BSQ_CHECK_CMD + dstfile;
+const cmd = BSQ_CHECK_CMD  + " " + dstpckg;
 console.log(cmd);
 exec(cmd, (err, out) => {
     if(err) {
-        process.stderr.write(`${err}`);
+        process.stderr.write(`${out}`);
         process.exit(1);
     }
     else {
         process.stdout.write(`${out}\n`);
-        
-        process.stdout.write(`Done!\n`);
         process.exit(0);
     }
 });

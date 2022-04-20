@@ -154,13 +154,14 @@ class Transpiler {
         }
         else {
             const ctype = this.processNameAsType(jv[2][2]);
+            
             if(ctype === "Ok") {
                 this.opCurryStack.push({ op: "ok", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
             }
             else if(ctype === "Err") {
                 this.opCurryStack.push({ op: "err", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
             }
-            if(ctype === "Some") {
+            else if(ctype === "Some") {
                 this.opCurryStack.push({ op: "some", isinfix: false, isdot: false, iscons: false, ispredfunctor: false, revargs: false, postaction: undefined, "args": [] });
             }
             else {
@@ -324,7 +325,7 @@ class Transpiler {
                 op = `(${ffunc.args[0]}).${ffunc.op}(${ffunc.args.slice(1).join(", ")})`;
             }
             else if(ffunc.iscons) {
-                op = `${ffunc.op}@{${ffunc.args.join(", ")}}`;
+                op = `${ffunc.op}{${ffunc.args.join(", ")}}`;
             }
             else {
                 op = `${ffunc.op}(${ffunc.args.join(", ")})`;
@@ -494,7 +495,7 @@ class Transpiler {
         const body = this.processValue(jv.body, EvalMode.Stmt, true, "    ");
         this.scopeStack.pop();
 
-        return `function ${name}(${args.join(", ")}): ${result} {\n` 
+        return `${name === "main" ? "entrypoint " : ""}function ${name}(${args.join(", ")}): ${result} {\n` 
         + body + "\n"
         + "}";
     }
